@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>联系人管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: calc(100% - 12px);
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #4cae4c;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 30px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        li {
+            background: #fff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        button.delete-btn {
+            background-color: #d9534f; /* 删除按钮颜色 */
+        }
+        button.delete-btn:hover {
+            background-color: #c9302c; /* 删除按钮悬停色 */
+        }
+        button.edit-btn {
+            background-color: #5bc0de; /* 修改按钮颜色 */
+        }
+        button.edit-btn:hover {
+            background-color: #31b0d5; /* 修改按钮悬停色 */
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        async function addContact() {
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const address = document.getElementById('address').value;
+
+            const response = await fetch('http://localhost:8080/contacts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, phone, address })
+            });
+
+            if (response.ok) {
+                alert('联系人添加成功');
+                loadContacts(); // 刷新联系人列表
+                clearInputFields();
+            } else {
+                alert('添加联系人失败');
+            }
+        }
+
+        async function loadContacts() {
+            const response = await fetch('http://localhost:8080/contacts'); // 使用正确的 URL
+            if (response.ok) {
+                const contacts = await response.json();
+                const contactList = document.getElementById('contactList');
+                contactList.innerHTML = ''; // 清空当前列表
+
+                contacts.forEach(contact => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `${contact.name} - ${contact.phone} - ${contact.address}`;
+
+                    // 添加删除按钮
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = '删除';
+                    deleteButton.className = 'delete-btn'; // 设置类名
+                    deleteButton.onclick = () => deleteContact(contact.name); // 使用姓名删除
+
+                    // 添加修改按钮
+                    const editButton = document.createElement('button');
+                    editButton.textContent = '修改';
+                    editButton.className = 'edit-btn'; // 设置类名
+                    editButton.onclick = () => openEditModal(contact); // 打开模态框
+
+                    li.appendChild(editButton);
+                    li.appendChild(deleteButton);
+                    contactList.appendChild(li);
+                });
+            } else {
+                console.error('加载联系人失败:', response.statusText);
+            }
+        }
+
+        async function deleteContact(name) {
+            const response = await fetch(`http://localhost:8080/contacts/${name}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                alert('联系人删除成功');
+                loadContacts(); // 刷新联系人列表
+            } else {
+                alert('删除联系人失败');
+            }
+        }
+
+        function openEditModal(contact) {
+            document.getElementById('updateName').value = contact.name;
+            document.getElementById('updatePhone').value = contact.phone;
+            document.getElementById('updateAddress').value = contact.address;
+
+            const modal = document.getElementById("editModal");
+            modal.style.display = "block";
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById("editModal");
+            modal.style.display = "none";
+        }
+
+        async function updateContact() {
+            const name = document.getElementById('updateName').value;
+            const phone = document.getElementById('updatePhone').value;
+            const address = document.getElementById('updateAddress').value;
+
+            const response = await fetch(`http://localhost:8080/contacts/${name}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, phone, address })
+            });
+
+            if (response.ok) {
+                alert('联系人修改成功');
+                loadContacts(); // 刷新联系人列表
+                closeEditModal();
+            } else {
+                alert('修改联系人失败');
+            }
+        }
+
+        function clearInputFields() {
+            document.getElementById('name').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('address').value = '';
+        }
+
+        // 页面加载时加载联系人
+        window.onload = loadContacts;
+    </script>
+</head>
+<body>
+<h1>联系人管理</h1>
+<form onsubmit="event.preventDefault(); addContact();">
+    <label for="name">姓名:</label>
+    <input type="text" id="name" required>
+
+    <label for="phone">电话:</label>
+    <input type="text" id="phone" required>
+
+    <label for="address">地址:</label>
+    <input type="text" id="address" required>
+
+    <button type="submit">添加联系人</button>
+</form>
+
+<h2>联系人列表</h2>
+<ul id="contactList"></ul>
+
+<!-- 模态框 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeEditModal()">&times;</span>
+        <h2>修改联系人</h2>
+        <form onsubmit="event.preventDefault(); updateContact();">
+            <label for="updateName">姓名:</label>
+            <input type="text" id="updateName" required>
+
+            <label for="updatePhone">电话:</label>
+            <input type="text" id="updatePhone" required>
+
+            <label for="updateAddress">地址:</label>
+            <input type="text" id="updateAddress" required>
+
+            <button type="submit">修改联系人</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
